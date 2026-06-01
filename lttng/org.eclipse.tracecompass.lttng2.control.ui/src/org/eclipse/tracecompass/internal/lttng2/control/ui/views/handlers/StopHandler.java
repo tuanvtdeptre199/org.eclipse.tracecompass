@@ -15,8 +15,14 @@ package org.eclipse.tracecompass.internal.lttng2.control.ui.views.handlers;
 
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.tracecompass.internal.lttng2.control.core.model.TraceSessionState;
 import org.eclipse.tracecompass.internal.lttng2.control.ui.views.model.impl.TraceSessionComponent;
+import org.eclipse.tracecompass.lttng2.control.ui.views.signals.ExternalTraceStopSignal;
+import org.eclipse.tracecompass.lttng2.control.ui.views.signals.LTTngSessionStartSignal;
+import org.eclipse.tracecompass.lttng2.control.ui.views.signals.LTTngSessionStopSignal;
+import org.eclipse.tracecompass.tmf.core.signal.TmfSignalHandler;
+import org.eclipse.tracecompass.tmf.core.signal.TmfSignalManager;
 
 /**
  * <p>
@@ -26,6 +32,14 @@ import org.eclipse.tracecompass.internal.lttng2.control.ui.views.model.impl.Trac
  * @author Bernd Hufmann
  */
 public class StopHandler extends ChangeSessionStateHandler {
+
+    /**
+     * Constructor
+     */
+    public StopHandler() {
+        super();
+        TmfSignalManager.register(this);
+    }
 
     // ------------------------------------------------------------------------
     // Accessors
@@ -43,5 +57,36 @@ public class StopHandler extends ChangeSessionStateHandler {
     @Override
     public void changeState(TraceSessionComponent session, IProgressMonitor monitor) throws ExecutionException {
         session.stopSession(monitor);
+        TmfSignalManager.dispatchSignal(
+                new LTTngSessionStopSignal(session));
+    }
+
+    /**
+     * Handle the external trace start signal
+     * @param signal contains the information of the start external trace
+     */
+    @TmfSignalHandler
+    public void handle(ExternalTraceStopSignal signal) {
+        Display.getDefault().asyncExec(() -> {
+            try {
+                System.out.println("External trace stop signal received" + signal.getSessionName()); //$NON-NLS-1$
+                execute(null);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    /**
+     * Handle the LTTng session start signal
+     * @param signal contains the information of the start LTTng session
+     */
+    @TmfSignalHandler
+    public void handle(LTTngSessionStartSignal signal) {
+        Display.getDefault().asyncExec(() -> {
+            if (signal.getSource() instanceof TraceSessionComponent session && !this.fSessions.contains(session)) {
+                this.fSessions.add(session);
+            }
+        });
     }
 }
